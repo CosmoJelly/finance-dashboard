@@ -1,50 +1,54 @@
-# Ledger — Personal Finance Dashboard
+# ₿-Ledger
+### A personal finance dashboard that actually looks good
 
-A dark, editorial-style personal finance dashboard built with **Next.js 14**, **Plaid Sandbox**, and **PostgreSQL**.
+I got tired of spreadsheets. So I built this — a dark, minimal finance dashboard that connects to your real bank accounts via Plaid and gives you a proper breakdown of where your money is going.
 
-## Features
+Built with Next.js, PostgreSQL, too much coffee, and a mind that it withering away in unemployment.
 
-- 🔗 **Plaid Link** — Connect any bank account via Plaid's sandbox
-- 📊 **Spending Breakdown** — Donut chart categorizing all expenses
-- 📅 **Monthly Trends** — Bar chart of 6-month spending history
-- 🏦 **Account Management** — Real-time balance across all linked accounts
-- 🔍 **Transaction Search** — Filter by category, date range, or keyword
-- 🏪 **Top Merchants** — Ranked bar chart of highest spend
-- ⚡ **7/30/90-day filters** — Adjustable date range throughout
+---
+
+## What it does
+
+- **Connects to your bank** via Plaid Link — works with most major institutions
+- **Categorizes transactions** automatically across 10+ spending categories
+- **Spending breakdown** — donut chart so you can see exactly where the money is leaking
+- **Monthly trends** — 6 months of spending history in a bar chart
+- **Top merchants** — ranked by how much you've given them your money
+- **Transaction search** — filter by category, date range (7/30/90 days), or keyword
+- **Account balances** — all your accounts in one place, real-time
 
 ---
 
 ## Tech Stack
 
-| Layer | Tech |
-|-------|------|
-| Frontend | Next.js 14 (App Router), React, Tailwind CSS |
+| | |
+|---|---|
+| Framework | Next.js 14 (App Router) |
+| Styling | Tailwind CSS |
 | Charts | Recharts |
-| Banking | Plaid API (Sandbox) |
+| Banking | Plaid API |
 | Database | PostgreSQL |
-| Fonts | DM Serif Display + DM Mono |
 
 ---
 
-## Setup
+## Getting it running
 
-### 1. Prerequisites
-
+### Prerequisites
 - Node.js 18+
-- PostgreSQL running locally
-- Plaid developer account
+- PostgreSQL
+- A free Plaid dev account
 
-### 2. Clone & Install
+### 1. Clone and install
 
 ```bash
-git clone <your-repo>
+git clone https://github.com/CosmoJelly/finance-dashboard.git
 cd finance-dashboard
 npm install
 ```
 
-### 3. Environment Variables
+### 2. Environment variables
 
-Create `.env.local` and fill in your values:
+Fill in `.env.local` with your keys:
 
 ```env
 # Plaid
@@ -54,90 +58,90 @@ PLAID_ENV=sandbox
 
 # PostgreSQL
 DATABASE_URL=postgresql://yourusername@localhost:5432/finance_dashboard
-
-# Next.js
-NEXTAUTH_SECRET=any_random_secret_id
-NEXTAUTH_URL=http://localhost:3000
 ```
 
-### 4. Create Database
+### 3. Set up the database
 
 ```bash
 createdb finance_dashboard
-```
-
-### 5. Run Migrations
-
-```bash
 npm run db:migrate
 ```
 
-This creates:
-- `plaid_items` — stores access tokens per linked institution
-- `accounts` — bank/credit account details + balances
-- `transactions` — all synced transactions with categories
-
-### 6. Start Dev Server
+### 4. Run it
 
 ```bash
 npm run dev
 ```
 
-Open http://localhost:3000
+Open http://localhost:3000 and you're in.
 
 ---
 
-## Plaid Sandbox Credentials
+## Plaid Sandbox
 
-When the Plaid Link modal opens, use any institution and:
+When the Plaid modal pops up, pick any bank and use these credentials:
 
-| Field | Value |
-|-------|-------|
-| Username | `user_good` |
-| Password | `pass_good` |
+```
+Username: user_good
+Password: pass_good
+```
 
-This will populate ~90 days of realistic mock transactions.
-
-When prompted with a phone number just ignore it and keep going.
+It'll populate around 90 days of realistic (fake) transaction data instantly.
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
 finance-dashboard/
 ├── app/
 │   ├── api/
-│   │   ├── create-link-token/route.ts   # POST: create Plaid Link token
-│   │   ├── exchange-token/route.ts      # POST: swap public token, sync accounts+txns
-│   │   ├── transactions/route.ts        # GET:  fetch txns, categories, monthly data
-│   │   └── accounts/route.ts            # GET:  fetch linked accounts
+│   │   ├── create-link-token/
+│   │   ├── exchange-token/
+│   │   ├── transactions/
+│   │   └── accounts/
 │   ├── dashboard/
-│   │   └── page.tsx                     # Main dashboard UI (client)
+│   │   └── page.tsx
 │   ├── layout.tsx
-│   ├── page.tsx                         # Redirects to /dashboard
 │   └── globals.css
 ├── components/
-│   ├── PlaidConnect.tsx                 # Plaid Link button
-│   ├── SpendingChart.tsx                # Donut chart (Recharts)
-│   ├── MonthlyChart.tsx                 # Bar chart (Recharts)
-│   ├── TransactionList.tsx              # Searchable transaction list
-│   ├── AccountCards.tsx                 # Account balance cards
-│   └── StatCard.tsx                     # KPI metric cards
+│   ├── PlaidConnect.tsx
+│   ├── SpendingChart.tsx
+│   ├── MonthlyChart.tsx
+│   ├── TransactionList.tsx
+│   ├── AccountCards.tsx
+│   └── StatCard.tsx
 ├── lib/
-│   ├── db.ts                            # PostgreSQL pool + query helper
-│   └── plaid.ts                         # Plaid client + category config
-├── types/
-│   └── index.ts                         # Shared TypeScript types
-└── scripts/
-    └── migrate.js                       # DB migration runner
+│   ├── db.ts
+│   └── plaid.ts
+├── types/index.ts
+└── scripts/migrate.js
 ```
 
-## Database Schema
+---
+
+## Database schema
+
+Three tables, pretty straightforward:
 
 ```sql
-plaid_items (id, user_id, item_id, access_token, institution_name)
-accounts    (id, item_id→plaid_items, account_id, name, type, current_balance, ...)
-transactions(id, account_id→accounts, transaction_id, amount, date, name, 
-             merchant_name, category[], primary_category, pending)
+plaid_items  (id, user_id, item_id, access_token, institution_name)
+accounts     (id, item_id → plaid_items, account_id, name, type, current_balance)
+transactions (id, account_id → accounts, transaction_id, amount, date,
+              name, merchant_name, category[], primary_category, pending)
 ```
+
+---
+
+## 🎧 Built to these playlists
+
+> *[smell the roses](https://open.spotify.com/playlist/6OLn8jEniAqL4jynGHKl7C?si=f9d3dd452bda40b8)*
+
+> *[love letter](https://open.spotify.com/playlist/7jof5LpBGXYGwtb3AWVDjA?si=3224de11d9614030)*
+
+> *[top lane tunes](https://open.spotify.com/playlist/2NDdO4ZAQTUg8ae5LY8t5y?si=cde32e103ce644a6)*
+---
+
+## License
+
+Do whatever you want with it. This was just to see if I could do it or not.
