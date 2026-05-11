@@ -6,6 +6,8 @@ I got tired of spreadsheets. So I built this — a dark, minimal finance dashboa
 Built with Next.js, PostgreSQL, too much coffee, and a mind that it withering away in unemployment.
 
 ---
+![CodeQL](https://github.com/CosmoJelly/finance-dashboard/actions/workflows/codeql.yml/badge.svg)
+
 
 ## What it does
 
