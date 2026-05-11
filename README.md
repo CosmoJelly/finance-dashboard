@@ -1,23 +1,21 @@
-# ₿-Ledger
-### A personal finance dashboard that actually looks good
+# ws-chat
+### A WebSocket chat server that actually works
 
-I got tired of spreadsheets. So I built this — a dark, minimal finance dashboard that connects to your real bank accounts via Plaid and gives you a proper breakdown of where your money is going.
+I wanted to build a real chat server - not the tutorial kind with Socket.io doing all the heavy lifting. So I did it properly. Raw WebSockets, Redis pub/sub, Postgres for history, presence tracking, typing indicators. The whole thing.
 
-Built with Next.js, PostgreSQL, too much coffee, and a mind that it withering away in unemployment.
+Built with Node.js, Redis, PostgreSQL, and a stubborn refusal to use a framework.
 
 ---
-![CodeQL](https://github.com/CosmoJelly/finance-dashboard/actions/workflows/codeql.yml/badge.svg)
-
 
 ## What it does
 
-- **Connects to your bank** via Plaid Link — works with most major institutions
-- **Categorizes transactions** automatically across 10+ spending categories
-- **Spending breakdown** — donut chart so you can see exactly where the money is leaking
-- **Monthly trends** — 6 months of spending history in a bar chart
-- **Top merchants** — ranked by how much you've given them your money
-- **Transaction search** — filter by category, date range (7/30/90 days), or keyword
-- **Account balances** — all your accounts in one place, real-time
+- **Real-time messaging** - raw WebSocket connections, no polling, no fallbacks
+- **User presence** - see who's online, updates instantly when people join or leave
+- **Typing indicators** - auto-expire after 4 seconds so they never get stuck
+- **Message history** - last 50 messages loaded on join, persisted in Postgres forever
+- **Multi-room support** - join any room by name, rooms are created on the fly
+- **Scales horizontally** - Redis pub/sub means multiple server nodes work out of the box
+- **Invite anyone** - throw it behind ngrok and share the URL
 
 ---
 
@@ -25,125 +23,148 @@ Built with Next.js, PostgreSQL, too much coffee, and a mind that it withering aw
 
 | | |
 |---|---|
-| Framework | Next.js 14 (App Router) |
-| Styling | Tailwind CSS |
-| Charts | Recharts |
-| Banking | Plaid API |
-| Database | PostgreSQL |
+| Runtime | Node.js (pure `http` + `ws`) |
+| Realtime fan-out | Redis Pub/Sub |
+| Presence & typing | Redis hashes + sorted sets |
+| Persistence | PostgreSQL |
+| Client | Vanilla JS, single HTML file |
 
 ---
 
 ## Getting it running
 
 ### Prerequisites
+
 - Node.js 18+
 - PostgreSQL
-- A free Plaid dev account
+- Redis
+- ngrok account (if you want to test it with the help of some friends)
 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/CosmoJelly/finance-dashboard.git
-cd finance-dashboard
+git clone https://github.com/CosmoJelly/websocket-chat.git
+cd websocket-chat
 npm install
 ```
 
 ### 2. Environment variables
 
-Fill in `.env.local` with your keys:
+```bash
+cp .env.example .env
+```
 
 ```env
-# Plaid
-PLAID_CLIENT_ID=your_client_id
-PLAID_SECRET=your_sandbox_secret
-PLAID_ENV=sandbox
+PORT=3001
 
-# PostgreSQL
-DATABASE_URL=postgresql://yourusername@localhost:5432/finance_dashboard
+PG_HOST=localhost
+PG_PORT=5432
+PG_DB=wschat
+PG_USER=postgres
+PG_PASSWORD=postgres
+
+REDIS_URL=redis://localhost:6379
 ```
 
 ### 3. Set up the database
 
 ```bash
-createdb finance_dashboard
-npm run db:migrate
+# Arch Linux
+sudo pacman -S postgresql redis (this could vary for your OS so just check)
+sudo -u postgres initdb --locale=en_US.UTF-8 -D /var/lib/postgres/data
+sudo systemctl enable --now postgresql
+sudo systemctl enable --now redis
+sudo -u postgres createdb wschat
 ```
 
 ### 4. Run it
 
 ```bash
-npm run dev
+npm start
 ```
 
-Open http://localhost:3000 and you're in.
+Open `index.html` in your browser and connect or use
+```bash
+xdg-open index.html
+```
 
 ---
 
-## Plaid Sandbox
+## Inviting others
 
-When the Plaid modal pops up, pick any bank and use these credentials:
+Expose your local server with ngrok and send them the URL:
+
+```bash
+ngrok http 3001
+```
+
+Tell them to open `index.html` and set the server field to:
 
 ```
-Username: user_good
-Password: pass_good
+wss://your-ngrok-url.ngrok-free.app/ws
 ```
 
-It'll populate around 90 days of realistic (fake) transaction data instantly.
+---
+
+## Protocol
+
+Every message is JSON with a `type` field.
+
+**Client → Server**
+```json
+{ "type": "join",         "roomId": "general", "username": "alice" }
+{ "type": "message",      "content": "hey"                         }
+{ "type": "typing"                                                  }
+{ "type": "stop_typing"                                             }
+{ "type": "heartbeat"                                               }
+```
+
+**Server → Client**
+```json
+{ "type": "welcome",  "userId": "...", "history": [...], "presence": {...} }
+{ "type": "message",  "username": "alice", "content": "hey", "createdAt": "..." }
+{ "type": "presence", "username": "alice", "online": true }
+{ "type": "typing",   "username": "alice", "isTyping": true }
+```
 
 ---
 
 ## Project structure
 
 ```
-finance-dashboard/
-├── app/
-│   ├── api/
-│   │   ├── create-link-token/
-│   │   ├── exchange-token/
-│   │   ├── transactions/
-│   │   └── accounts/
-│   ├── dashboard/
-│   │   └── page.tsx
-│   ├── layout.tsx
-│   └── globals.css
-├── components/
-│   ├── PlaidConnect.tsx
-│   ├── SpendingChart.tsx
-│   ├── MonthlyChart.tsx
-│   ├── TransactionList.tsx
-│   ├── AccountCards.tsx
-│   └── StatCard.tsx
-├── lib/
-│   ├── db.ts
-│   └── plaid.ts
-├── types/index.ts
-└── scripts/migrate.js
+websocket-chat/
+├── server.js       
+├── chat.js            
+├── db.js           
+├── redis.js         
+├── index.html
+├── docker-compose.yml
+├── .env.example
+└── package.json
 ```
 
 ---
 
 ## Database schema
 
-Three tables, pretty straightforward:
-
 ```sql
-plaid_items  (id, user_id, item_id, access_token, institution_name)
-accounts     (id, item_id → plaid_items, account_id, name, type, current_balance)
-transactions (id, account_id → accounts, transaction_id, amount, date,
-              name, merchant_name, category[], primary_category, pending)
+rooms    (id, name, created_at)
+users    (id, username, created_at, last_seen)
+messages (id, room_id → rooms, user_id, username,
+          content, deleted_at, created_at)
 ```
 
 ---
 
 ## 🎧 Built to these playlists
 
-> *[smell the roses](https://open.spotify.com/playlist/6OLn8jEniAqL4jynGHKl7C?si=f9d3dd452bda40b8)*
-
-> *[love letter](https://open.spotify.com/playlist/7jof5LpBGXYGwtb3AWVDjA?si=3224de11d9614030)*
-
+> *[in my own head](https://open.spotify.com/playlist/0auscJmVTHpAzPK1til3I2?si=d6a7b18205d543b8)*
+> *[on the soul search](https://open.spotify.com/playlist/5EupibT67sLlGYBYZj1qUP?si=51e057d732c4472d)*
 > *[top lane tunes](https://open.spotify.com/playlist/2NDdO4ZAQTUg8ae5LY8t5y?si=cde32e103ce644a6)*
+> *[real world actors](https://open.spotify.com/playlist/7qc583xE29T4hbWq2BJPXQ?si=a1891cf8e5dc40c5)*
+
 ---
 
 ## License
 
-Do whatever you want with it. This was just to see if I could do it or not.
+Do whatever you want with it.
